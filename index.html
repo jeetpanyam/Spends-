@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Spend Tracker</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Spends">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#E9EFEA">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#E9EFEA; --card:#F8FBF8; --ink:#16324F; --muted:#5B7083; --line:#C9D6CE;
+  --stamp:#B3261E; --ok:#1F6F4A; --sheet:#FFFFFF;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#0F1A24; --card:#172634; --ink:#E4ECF2; --muted:#93A6B6; --line:#28394A;
+    --stamp:#FF7A70; --ok:#6FD3A0; --sheet:#1B2C3B;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#0F1A24; --card:#172634; --ink:#E4ECF2; --muted:#93A6B6; --line:#28394A;
+  --stamp:#FF7A70; --ok:#6FD3A0; --sheet:#1B2C3B;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);
+  font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  -webkit-tap-highlight-color:transparent}
+main{max-width:520px;margin:0 auto;padding:20px 16px 40px}
+.num{font-variant-numeric:tabular-nums}
+
+header{padding:8px 4px 20px;border-bottom:2px dashed var(--line);margin-bottom:18px}
+.month{font-size:15px;color:var(--muted);margin:0 0 4px}
+.total{font-size:clamp(44px,13vw,64px);font-weight:800;line-height:1;margin:0;letter-spacing:-.02em}
+.total small{font-size:.45em;font-weight:600;margin-right:2px;vertical-align:.55em}
+.today{margin:10px 0 0;font-size:15px;color:var(--muted)}
+.today b{color:var(--ink);font-weight:600}
+
+h2{font-size:17px;font-weight:600;margin:0 0 10px 4px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:28px}
+.app{appearance:none;border:1.5px solid var(--line);background:var(--card);color:var(--ink);
+  border-radius:14px;padding:14px 14px 12px;text-align:left;font:inherit;cursor:pointer;
+  display:flex;flex-direction:column;gap:6px;min-height:88px;position:relative;overflow:hidden;
+  transition:transform .12s ease}
+.app:active{transform:scale(.97)}
+.app:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.app::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--c)}
+.app .name{font-size:17px;font-weight:600;padding-left:4px}
+.app .amt{font-size:14px;color:var(--muted);padding-left:4px}
+
+.list{list-style:none;margin:0;padding:0;background:var(--card);border:1.5px solid var(--line);border-radius:14px}
+.list li{display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.list li:last-child{border-bottom:0}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}
+.meta{flex:1;min-width:0;cursor:pointer}
+.meta .w.add{font-style:italic;opacity:.75}
+.meta .a{font-weight:600;font-size:16px}
+.meta .w{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.list .v{font-weight:600;font-size:16px;cursor:pointer}
+.del{appearance:none;border:0;background:none;color:var(--muted);font:inherit;font-size:20px;
+  width:36px;height:36px;border-radius:8px;cursor:pointer;flex:none}
+.del:focus-visible{outline:2px solid var(--ink)}
+.empty{padding:22px 16px;color:var(--muted);text-align:center;font-size:15px}
+.status{font-size:13px;color:var(--muted);text-align:center;margin-top:18px}
+
+/* bottom sheet */
+.scrim{position:fixed;inset:0;background:rgba(10,20,30,.45);opacity:0;pointer-events:none;transition:opacity .18s}
+.scrim.on{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;margin:0 auto;max-width:520px;background:var(--sheet);
+  border-radius:20px 20px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px));
+  transform:translateY(105%);transition:transform .22s ease;box-shadow:0 -8px 30px rgba(0,0,0,.18)}
+.sheet.on{transform:none}
+.sheet h3{margin:0 0 14px;font-size:20px;display:flex;align-items:center;gap:10px}
+.field{display:flex;align-items:center;border:2px solid var(--ink);border-radius:12px;padding:0 14px;margin-bottom:10px}
+.field span{font-size:30px;font-weight:600;color:var(--muted)}
+.field input{flex:1;min-width:0;border:0;background:none;color:var(--ink);font:inherit;font-size:34px;font-weight:800;padding:12px 8px;outline:none}
+.note{width:100%;border:1.5px solid var(--line);border-radius:12px;background:none;color:var(--ink);
+  font:inherit;font-size:16px;padding:12px 14px;margin-bottom:14px;outline:none}
+.note:focus{border-color:var(--ink)}
+.datef{display:flex;align-items:center;justify-content:space-between;gap:12px;border:1.5px solid var(--line);border-radius:12px;padding:6px 8px 6px 14px;margin:-4px 0 14px;font-size:16px;color:var(--muted)}
+.datef input{border:0;background:none;color:var(--ink);font:inherit;font-size:16px;font-weight:600;padding:6px;min-height:36px;outline:none;text-align:right}
+.datef:focus-within{border-color:var(--ink)}
+.datef[hidden]{display:none}
+#appRow{margin:0 0 10px}
+.datef select{border:0;background:none;color:var(--ink);font:inherit;font-size:16px;font-weight:600;padding:6px;min-height:36px;outline:none;text-align:right;max-width:60%}
+.datef select option{color:#16324F;background:#fff}
+.more{display:block;margin:12px auto 0;appearance:none;border:1.5px solid var(--line);background:none;color:var(--ink);font:inherit;font-size:15px;font-weight:600;padding:10px 18px;border-radius:999px;cursor:pointer}
+.more[hidden]{display:none}
+.backup{display:flex;gap:10px;justify-content:center;margin-top:14px}
+.backup .more{margin:0}
+.row{display:flex;gap:10px}
+.btn{flex:1;appearance:none;border:0;border-radius:12px;padding:15px;font:inherit;font-size:17px;font-weight:600;cursor:pointer}
+.btn.save{background:var(--ink);color:var(--paper)}
+.btn.cancel{background:none;color:var(--ink);border:1.5px solid var(--line);flex:.6}
+.btn:disabled{opacity:.4}
+.err{color:var(--stamp);font-size:14px;min-height:18px;margin:0 0 8px}
+
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translate(-50%,20px);
+  background:var(--ok);color:#fff;padding:10px 18px;border-radius:999px;font-weight:600;font-size:15px;
+  opacity:0;transition:all .2s;pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <p class="month" id="monthLabel">This month</p>
+    <p class="total num"><small>₹</small><span id="monthTotal">0</span></p>
+    <p class="today">Today <b class="num" id="todayTotal">₹0</b></p>
+  </header>
+
+  <h2>Tap where you spent</h2>
+  <div class="grid" id="grid"></div>
+
+  <h2>Recent <span style="font-weight:400;font-size:14px;color:var(--muted)">· tap an entry to edit</span></h2>
+  <ul class="list" id="list"></ul>
+  <button class="more" id="more" hidden onclick="showAll=!showAll;render()">Show all</button>
+  <p class="status" id="status">Loading your entries…</p>
+  <div class="backup">
+    <button class="more" id="exportBtn">Export backup</button>
+    <label class="more" for="importFile">Import backup</label>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+  </div>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <h3 id="sheetTitle"><span class="dot" id="sheetDot"></span><span id="sheetName"></span></h3>
+  <label class="datef" id="appRow" hidden><span>App</span><select id="appSel" aria-label="App"></select></label>
+  <label class="field"><span>₹</span>
+    <input id="amount" type="text" inputmode="decimal" placeholder="0" autocomplete="off" aria-label="Amount spent">
+  </label>
+  <input class="note" id="note" type="text" placeholder="Add a note (optional), e.g. dinner" maxlength="60" aria-label="Note">
+  <label class="datef"><span>Date</span><input id="date" type="date" aria-label="Date of spend"></label>
+  <p class="err" id="err"></p>
+  <div class="row">
+    <button class="btn cancel" id="cancel">Cancel</button>
+    <button class="btn save" id="save">Save</button>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const APPS = [
+  {name:"Swiggy",         c:"#E8742C"},
+  {name:"Instamart",      c:"#8E3FA8"},
+  {name:"Amazon",         c:"#D9A21B"},
+  {name:"Myntra",         c:"#D6336C"},
+  {name:"GPay",           c:"#2F6FDB"},
+  {name:"PhonePe",        c:"#5B3CC4"},
+  {name:"BHIM UPI",       c:"#178A6B"},
+  {name:"Others/personal",c:"#6C7A86"},
+];
+const colorOf = n => (APPS.find(a=>a.name===n)||{c:"#6C7A86"}).c;
+function fmt(v){ return "₹" + Number(v).toLocaleString("en-IN",{maximumFractionDigits:2}); }
+const monthKey = d => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0");
+const sameDay = (a,b) => a.toDateString()===b.toDateString();
+
+let entries = [];      // {id, app, amt, ts, note}
+let store = null;      // {loadAll, saveMonth}
+let current = null;
+let showAll = false;
+
+/* ---------- storage: account-backed db, else this-device fallback ---------- */
+const LS_KEY = "spend-tracker-entries";
+const localStore = {
+  kind:"device",
+  async loadAll(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||"[]"); }catch(e){ return []; } },
+  async saveMonth(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(entries)); }catch(e){ throw e; } }
+};
+
+/* ---------- render ---------- */
+function render(){
+  const now = new Date(), mk = monthKey(now);
+  const month = entries.filter(e => monthKey(new Date(e.ts))===mk);
+  const today = month.filter(e => sameDay(new Date(e.ts), now));
+  document.getElementById("monthLabel").textContent =
+    now.toLocaleDateString("en-IN",{month:"long",year:"numeric"}) + " spend";
+  document.getElementById("monthTotal").textContent =
+    month.reduce((s,e)=>s+e.amt,0).toLocaleString("en-IN",{maximumFractionDigits:2});
+  document.getElementById("todayTotal").textContent = fmt(today.reduce((s,e)=>s+e.amt,0));
+
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
+  APPS.forEach(a => {
+    const sum = month.filter(e=>e.app===a.name).reduce((s,e)=>s+e.amt,0);
+    const b = document.createElement("button");
+    b.className = "app"; b.style.setProperty("--c", a.c);
+    b.innerHTML = `<span class="name"></span><span class="amt num"></span>`;
+    b.querySelector(".name").textContent = a.name;
+    b.querySelector(".amt").textContent = sum ? fmt(sum)+" this month" : "Nothing yet";
+    b.onclick = () => openSheet(a);
+    grid.appendChild(b);
+  });
+
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+  const sorted = [...entries].sort((a,b)=>b.ts-a.ts);
+  const recent = showAll ? sorted : sorted.slice(0,30);
+  const moreBtn = document.getElementById("more");
+  moreBtn.hidden = sorted.length <= 30;
+  moreBtn.textContent = showAll ? "Show recent only" : "Show all " + sorted.length + " entries";
+  if(!recent.length){ list.innerHTML = `<li class="empty">Tap an app above to log your first spend.</li>`; return; }
+  recent.forEach(e => {
+    const d = new Date(e.ts);
+    const when = sameDay(d,now) ? "Today, "+d.toLocaleTimeString("en-IN",{hour:"numeric",minute:"2-digit"})
+                                : d.toLocaleDateString("en-IN",{day:"numeric",month:"short"});
+    const li = document.createElement("li");
+    li.style.setProperty("--c", colorOf(e.app));
+    li.innerHTML = `<span class="dot"></span><div class="meta"><div class="a"></div><div class="w"></div></div>
+      <span class="v num"></span><button class="del" aria-label="Delete entry">×</button>`;
+    li.querySelector(".a").textContent = e.app;
+    li.querySelector(".w").textContent = when + (e.note ? " · " + e.note : " · tap to edit");
+    if(!e.note) li.querySelector(".w").classList.add("add");
+    li.querySelector(".meta").onclick = () => openEdit(e);
+    li.querySelector(".v").onclick = () => openEdit(e);
+    li.querySelector(".v").textContent = fmt(e.amt);
+    li.querySelector(".del").onclick = () => removeEntry(e);
+    list.appendChild(li);
+  });
+}
+
+/* ---------- sheet (add + edit) ---------- */
+const $amt = document.getElementById("amount"), $note = document.getElementById("note"), $err = document.getElementById("err"), $date = document.getElementById("date"), $app = document.getElementById("appSel");
+const isoDay = d => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+let editing = null;
+APPS.forEach(a => { const o = document.createElement("option"); o.value = o.textContent = a.name; $app.appendChild(o); });
+$app.onchange = () => setHead($app.value);
+function setHead(name){
+  document.getElementById("sheetName").textContent = editing ? "Edit " + name + " entry" : name;
+  document.getElementById("sheetDot").style.setProperty("--c", colorOf(name));
+}
+function showSheet(){
+  $err.textContent = ""; $date.max = isoDay(new Date());
+  document.getElementById("scrim").classList.add("on");
+  document.getElementById("sheet").classList.add("on");
+}
+function openSheet(app){
+  current = app; editing = null;
+  $amt.value = ""; $note.value = ""; $date.value = isoDay(new Date());
+  document.getElementById("appRow").hidden = true;
+  document.getElementById("save").textContent = "Save";
+  setHead(app.name); showSheet();
+  setTimeout(()=> $amt.focus(), 60);
+}
+function openEdit(e){
+  editing = e; current = {name:e.app};
+  $amt.value = String(e.amt); $note.value = e.note || ""; $date.value = isoDay(new Date(e.ts));
+  if(!APPS.some(a=>a.name===e.app)){ const o=document.createElement("option"); o.value=o.textContent=e.app; $app.appendChild(o); }
+  $app.value = e.app;
+  document.getElementById("appRow").hidden = false;
+  document.getElementById("save").textContent = "Save changes";
+  setHead(e.app); showSheet();
+}
+function closeSheet(){
+  document.getElementById("scrim").classList.remove("on");
+  document.getElementById("sheet").classList.remove("on");
+  $amt.blur(); current = null; editing = null;
+}
+document.getElementById("cancel").onclick = closeSheet;
+document.getElementById("scrim").onclick = closeSheet;
+$amt.addEventListener("keydown", e => { if(e.key==="Enter") save(); });
+$note.addEventListener("keydown", e => { if(e.key==="Enter") save(); });
+document.getElementById("save").onclick = save;
+
+async function save(){
+  if(!current) return;
+  if(!store){ $err.textContent = "Still loading, try again in a second."; return; }
+  const v = parseFloat($amt.value.replace(/[,₹\s]/g,""));
+  if(!(v > 0)){ $err.textContent = "Enter an amount greater than 0."; $amt.focus(); return; }
+  const now = new Date();
+  let ts;
+  if(editing && $date.value === isoDay(new Date(editing.ts))) ts = editing.ts;      // date unchanged
+  else if(!$date.value || $date.value === isoDay(now)) ts = now.getTime();
+  else {
+    const [y,m,d] = $date.value.split("-").map(Number);
+    const picked = new Date(y, m-1, d, 12, 0, 0);
+    if(picked > now){ $err.textContent = "Pick today or an earlier date."; return; }
+    ts = picked.getTime();
+  }
+  const btn = document.getElementById("save"); btn.disabled = true;
+  const before = entries;
+  let e, months;
+  if(editing){
+    e = {...editing, app: $app.value, amt: Math.round(v*100)/100, ts, note: $note.value.trim()};
+    entries = entries.map(x => x.id===editing.id ? e : x);
+    months = [...new Set([monthKey(new Date(editing.ts)), monthKey(new Date(ts))])];
+  } else {
+    e = { id: Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+          app: current.name, amt: Math.round(v*100)/100, ts, note: $note.value.trim() };
+    entries = [...entries, e];
+    months = [monthKey(new Date(ts))];
+  }
+  const wasEdit = !!editing;
+  try{
+    for(const mk of months) await store.saveMonth(mk);
+    closeSheet(); render();
+    toast(wasEdit ? "Changes saved"
+      : fmt(e.amt) + " saved to " + e.app + (sameDay(new Date(e.ts), now) ? "" : " for " + new Date(e.ts).toLocaleDateString("en-IN",{day:"numeric",month:"short"})));
+  }catch(err){
+    entries = before;
+    $err.textContent = "Couldn't save. Check your connection and tap Save again.";
+  }
+  btn.disabled = false;
+}
+
+async function removeEntry(e){
+  if(!confirm(`Delete ${fmt(e.amt)} on ${e.app}?`)) return;
+  const before = entries;
+  entries = entries.filter(x=>x.id!==e.id);
+  render();
+  try{ await store.saveMonth(monthKey(new Date(e.ts))); toast("Entry deleted"); }
+  catch(err){ entries = before; render(); toast("Couldn't delete. Try again."); }
+}
+
+let tt;
+function toast(msg){
+  const t = document.getElementById("toast"); t.textContent = msg; t.classList.add("on");
+  clearTimeout(tt); tt = setTimeout(()=>t.classList.remove("on"), 1800);
+}
+
+/* ---------- backup ---------- */
+document.getElementById("exportBtn").onclick = () => {
+  const blob = new Blob([JSON.stringify({entries}, null, 1)], {type:"application/json"});
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "spend-backup-" + isoDay(new Date()) + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+};
+document.getElementById("importFile").onchange = async ev => {
+  const f = ev.target.files[0]; ev.target.value = "";
+  if(!f) return;
+  try{
+    const data = JSON.parse(await f.text());
+    const list = (Array.isArray(data) ? data : data.entries || []).filter(e => e && e.id && e.app && e.amt > 0 && e.ts);
+    const have = new Set(entries.map(e=>e.id));
+    const added = list.filter(e => !have.has(e.id)).map(e=>({id:String(e.id),app:String(e.app),amt:+e.amt,ts:+e.ts,note:String(e.note||"")}));
+    entries = entries.concat(added);
+    await store.saveMonth();
+    render(); toast(added.length ? added.length + " entries imported" : "No new entries in that file");
+  }catch(err){ toast("That file isn't a valid backup."); }
+};
+
+/* ---------- start ---------- */
+render();
+(async () => {
+  store = localStore;
+  try{ entries = (await store.loadAll()).filter(e => e && e.app && e.amt > 0).map(e => ({...e})); }catch(e){ entries = []; }
+  render();
+  document.getElementById("status").textContent = "Saved on this phone. Export a backup now and then.";
+})();
+</script>
+</body>
+</html>
